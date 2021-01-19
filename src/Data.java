@@ -2,7 +2,6 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
-import java.lang.management.BufferPoolMXBean;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -11,6 +10,7 @@ import java.util.LinkedList;
  * Created by sbk on 14.09.15.
  */
 public class Data {
+    private static final String REAL_DOMAIN = "@REAL";
     private LinkedList<Instance> instances;
     private LinkedList<Attribute> attributes;
     private String name;
@@ -26,7 +26,7 @@ public class Data {
 
     }
 
-    public Data filterAttributeValue(Attribute at, String value){
+    public Data filterNominalAttributeValue(Attribute at, String value){
         LinkedList<Instance> newInstances = new LinkedList<>();
         LinkedList<Attribute> newAttributes = ((LinkedList)attributes.clone());
         newAttributes.remove(at);
@@ -43,6 +43,29 @@ public class Data {
 
         return new Data(name,newAttributes,newInstances);
     }
+
+    public Data filterNumericAttributeValue(Attribute at, String value, boolean lessThan){
+        LinkedList<Instance> newInstances = new LinkedList<>();
+        LinkedList<Attribute> newAttributes = ((LinkedList)attributes.clone());
+        newAttributes.remove(at);
+
+        for(Instance i : instances){
+            Reading reading = i.getReadingForAttribute(at.getName());
+            String instanceVal = reading.getMostProbable().getName();
+            if(lessThan && Double.parseDouble(instanceVal) < Double.parseDouble(value)){
+                LinkedList<Reading> newReadings = (LinkedList)i.getReadings().clone();
+                newReadings.remove(reading);
+                newInstances.add(new Instance(newReadings));
+            }else if(!lessThan && Double.parseDouble(instanceVal) >= Double.parseDouble(value)){
+                LinkedList<Reading> newReadings = (LinkedList)i.getReadings().clone();
+                newReadings.remove(reading);
+                newInstances.add(new Instance(newReadings));
+            }
+        }
+
+        return new Data(name,newAttributes,newInstances);
+    }
+
 
 
     public Attribute getAttributeOfName(String attName){
@@ -147,38 +170,70 @@ public class Data {
         return AttStats.getStatistics(att, this);
     }
 
+    private static Data readUARFFFromBuffer(BufferedReader br) throws IOException, ParseException {
+        String name = null;
+        LinkedList<Attribute> atts = new LinkedList<Attribute>();
+        LinkedList<Instance> insts = new LinkedList<Instance>();
+
+        name = br.readLine().split("@relation")[1].trim();
+        String line = "";
+        while ((line = br.readLine()) != null) {
+            if(line.length() == 0) continue;
+            String [] attSplit = line.trim().split("@attribute");
+            if(attSplit.length > 1){
+                Attribute att = parseAttribute(attSplit[1].trim());
+                atts.add(att);
+            }else if(line.trim().equals("@data")){
+                break;
+            }
+
+        }
+
+        //Read instances
+        while ((line = br.readLine()) != null) {
+            Instance inst = parseInstances(atts, line.trim());
+            insts.add(inst);
+        }
+
+
+        Data tmpData = new  Data(name, atts, insts);
+        tmpData.updateAttributeDomains();
+        return tmpData;
+    }
+
+
+    public  void updateAttributeDomains(){
+        for(Attribute a: getAttributes()){
+            if(a.getType()==Attribute.TYPE_NUMERICAL){
+                HashSet<String> domain = getDomainFromData(a,instances);
+                a.setDomain(domain);
+            }
+        }
+    }
+
+    private HashSet<String> getDomainFromData(Attribute a, LinkedList<Instance> instances){
+        HashSet<String> domain = new HashSet<>();
+        for(Instance i : instances){
+            String value  = i.getReadingForAttribute(a.getName()).getMostProbable().getName();
+            domain.add(value);
+        }
+        return domain;
+    }
+
+
     public static Data parseUArff(String filename) throws ParseException {
         String name = null;
         LinkedList<Attribute> atts = new LinkedList<Attribute>();
         LinkedList<Instance> insts = new LinkedList<Instance>();
         //Open file
         try (BufferedReader br = new BufferedReader(new FileReader(filename))) {
-            name = br.readLine().split("@relation")[1].trim();
-            String line = "";
-            while ((line = br.readLine()) != null) {
-                if(line.length() == 0) continue;
-                String [] attSplit = line.trim().split("@attribute");
-                if(attSplit.length > 1){
-                    Attribute att = parseAttribute(attSplit[1].trim());
-                    atts.add(att);
-                }else if(line.trim().equals("@data")){
-                    break;
-                }
-
-            }
-
-            //Read instances
-            while ((line = br.readLine()) != null) {
-                Instance inst = parseInstances(atts, line.trim());
-                insts.add(inst);
-            }
-
-            return new Data(name, atts, insts);
+            return readUARFFFromBuffer(br);
         } catch (IOException e) {
             e.printStackTrace();
         }
         return null;
     }
+
 
     public static Data parseUArffFromString(String uarff) throws ParseException {
         String name = null;
@@ -186,27 +241,7 @@ public class Data {
         LinkedList<Instance> insts = new LinkedList<Instance>();
         //Open file
         try (BufferedReader br = new BufferedReader(new StringReader(uarff))) {
-            name = br.readLine().split("@relation")[1].trim();
-            String line = "";
-            while ((line = br.readLine()) != null) {
-                if(line.length() == 0) continue;
-                String [] attSplit = line.trim().split("@attribute");
-                if(attSplit.length > 1){
-                    Attribute att = parseAttribute(attSplit[1].trim());
-                    atts.add(att);
-                }else if(line.trim().equals("@data")){
-                    break;
-                }
-
-            }
-
-            //Read instances
-            while ((line = br.readLine()) != null) {
-                Instance inst = parseInstances(atts, line.trim());
-                insts.add(inst);
-            }
-
-            return new Data(name, atts, insts);
+            return readUARFFFromBuffer(br);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -299,16 +334,21 @@ public class Data {
 
     public static Attribute parseAttribute(String attDef){
         int nameBoundary = attDef.indexOf(' ');
+        int type = Attribute.TYPE_NOMINAL;
         String name = attDef.substring(0,nameBoundary);
         HashSet<String> domain  = new HashSet<String>();
 
 
         String [] untrimmedDomain = attDef.substring(nameBoundary).replaceAll("[{}]","").split(",");
         for(String value : untrimmedDomain){
+            if(value.trim().equals(REAL_DOMAIN)){
+                type = Attribute.TYPE_NUMERICAL;
+                break;
+            }
             domain.add(value.trim());
         }
 
-        return new Attribute(name, domain);
+        return new Attribute(name, domain,type);
     }
 
     public LinkedList<Instance> getInstances() {

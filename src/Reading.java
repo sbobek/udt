@@ -81,20 +81,24 @@ public class Reading {
         if(totalProb > 1) throw new ParseException("Probability greater than 1 in "+readingDef);
 
         //check if there are some missing values to assign them uniform distribution
-        LinkedList<String> valNames = new LinkedList<>();
-        for(Value v : values){
-             valNames.add(v.getName());
-        }
-
-        HashSet<String> remaining  = ((HashSet)baseAtt.getDomain().clone());
-        remaining.removeAll(valNames);
-
-        //find out if there is any probability left for missing values, if any
-        if(!remaining.isEmpty()){
-            double uniformProb = (1-totalProb)/remaining.size();
-            for(String rv : remaining){
-                values.add(new Value(rv,uniformProb));
+        if(baseAtt.getType() == Attribute.TYPE_NOMINAL){
+            LinkedList<String> valNames = new LinkedList<>();
+            for(Value v : values){
+                 valNames.add(v.getName());
             }
+
+            HashSet<String> remaining  = ((HashSet)baseAtt.getDomain().clone());
+            remaining.removeAll(valNames);
+
+            //find out if there is any probability left for missing values, if any
+            if(!remaining.isEmpty()){
+                double uniformProb = (1-totalProb)/remaining.size();
+                for(String rv : remaining){
+                    values.add(new Value(rv,uniformProb));
+                }
+            }
+        }else if (baseAtt.getType() == Attribute.TYPE_NUMERICAL){
+            //Skip -- in post hoc loop add informaiton about distribution
         }
 
 

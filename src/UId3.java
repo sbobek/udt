@@ -19,6 +19,8 @@ public class UId3 {
         if(depth > TREE_DEPTH_LIMIT) return null;
         double entropy = entropyEvaluator.calculateEntropy(data);
 
+        data.updateAttributeDomains();
+
         // of the set is heterogeneous or no attributes to split, just class -- return leaf
         if(entropy == 0 || data.getAttributes().size() == 1 ){
             // create the only node and summary for it
@@ -34,10 +36,33 @@ public class UId3 {
             if(data.getClassAttribute().equals(a)) continue;
             HashSet<String> values = a.getDomain();
             double tempGain = entropy;
+            double tempNumericGain = 0;
             AttStats stats = data.calculateStatistics(a);
             for(String v : values){
-                Data subdata = data.filterAttributeValue(a,v);
-                tempGain -= stats.getStatForValue(v)*new UncertainEntropyEvaluator().calculateEntropy(subdata);
+                Data subdata = null;
+                Data subdataLessThan = null;
+                Data subdataGreaterEqual = null;
+                if(a.getType()==Attribute.TYPE_NOMINAL) {
+                    subdata = data.filterNominalAttributeValue(a, v);
+                }else if(a.getType() == Attribute.TYPE_NUMERICAL){
+                    subdataLessThan = data.filterNumericAttributeValue(a, v, true);
+                    subdataGreaterEqual= data.filterNumericAttributeValue(a, v, false);
+                }
+                if(a.getType()==Attribute.TYPE_NOMINAL) {
+                    tempGain -= stats.getStatForValue(v) * new UncertainEntropyEvaluator().calculateEntropy(subdata);
+                }else if(a.getType() == Attribute.TYPE_NUMERICAL){
+                    double singleTempGain = entropy-stats.getStatForValue(v) *
+                            (
+                                    new UncertainEntropyEvaluator().calculateEntropy(subdataLessThan) +
+                                    new UncertainEntropyEvaluator().calculateEntropy(subdataGreaterEqual)
+                            );
+                    if(singleTempGain >= tempNumericGain ){
+                        tempNumericGain=singleTempGain;
+                        tempGain = singleTempGain;
+                        a.setValueToSplitOn(v);
+
+                    }
+                }
             }
 
             if(tempGain >= infoGain){
@@ -56,19 +81,35 @@ public class UId3 {
             return result;
 
         }
-
+        System.out.println("Global best "+bestSplit.getName());
         //Create root node, and recursively go deeper into the tree.
         Attribute classAtt = data.getClassAttribute();
         AttStats classStats = data.calculateStatistics(classAtt);
         TreeNode root = new TreeNode(bestSplit.getName(), classStats);
 
         //attach newly created trees
-        for(String val : bestSplit.getDomain()){
-            Data newData = data.filterAttributeValue(bestSplit, val);
-            Tree subtree = UId3.growTree(newData,entropyEvaluator, depth+1);
-            AttStats bestSplitStats = data.calculateStatistics(bestSplit);
-            if(subtree != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
-                root.addEdge(new TreeEdge(new Value(val, bestSplitStats.getAvgConfidence()), subtree.getRoot()));
+        for(String val : bestSplit.getSpittableDomain()){
+            if(bestSplit.getType() == Attribute.TYPE_NOMINAL) {
+                Data newData = data.filterNominalAttributeValue(bestSplit, val);
+                Tree subtree = UId3.growTree(newData, entropyEvaluator, depth + 1);
+                AttStats bestSplitStats = data.calculateStatistics(bestSplit);
+                if (subtree != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
+                    root.addEdge(new TreeEdge(new Value(val, bestSplitStats.getAvgConfidence()), subtree.getRoot()));
+                }
+            }else if(bestSplit.getType() == Attribute.TYPE_NUMERICAL) {
+                Data newDataLessThen = data.filterNumericAttributeValue(bestSplit, val, true);
+                Data newDataGreaterEqual = data.filterNumericAttributeValue(bestSplit, val, false);
+                Tree subtreeLessThan = UId3.growTree(newDataLessThen, entropyEvaluator, depth + 1);
+                Tree subtreeGreaterEqual = UId3.growTree(newDataGreaterEqual, entropyEvaluator, depth + 1);
+                AttStats bestSplitStats = data.calculateStatistics(bestSplit);
+
+                if (subtreeLessThan != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
+                    root.addEdge(new TreeEdge(new Value("<"+val, bestSplitStats.getAvgConfidence()), subtreeLessThan.getRoot()));
+
+                }
+                if (subtreeGreaterEqual != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
+                    root.addEdge(new TreeEdge(new Value(">="+val, bestSplitStats.getAvgConfidence()), subtreeGreaterEqual.getRoot()));
+                }
             }
 
         }
@@ -80,6 +121,18 @@ public class UId3 {
     }
 
     public static void main(String [] argv){
+
+        try {
+            Data data = Data.parseUArff("./resources/weather.numeric.arff");
+            Tree t = growTree(data, new UncertainEntropyEvaluator(),0);
+            System.out.println(t.toDot());
+
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void growTreeUncertainNominal(String [] argv){
 
         try {
             //Data data = Data.parseUArff("./resources/dataset-mobile-usage.arff",0);
@@ -105,6 +158,7 @@ public class UId3 {
                   //  new DataScrambler.Configuration("emotion",0.3,0.14,false)
             });
 */
+
             Tree t = growTree(data, new UncertainEntropyEvaluator(),0);
             TreeEvaluator.BenchmarkResult br = TreeEvaluator.trainAndTest(data, test);
 

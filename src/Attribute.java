@@ -7,12 +7,24 @@ import java.util.LinkedList;
  * Created by sbk on 14.09.15.
  */
 public class Attribute {
+    public static final int TYPE_NOMINAL = 1;
+    public static final int TYPE_NUMERICAL = 2;
+
+
     private String name;
     private HashSet<String> domain;
+    private int type = TYPE_NOMINAL;
+    private String valueToSplitOn;
 
     public Attribute(String name, HashSet<String> domain) {
         this.domain  = domain;
         this.name = name;
+    }
+
+    public Attribute(String name, HashSet<String> domain, int type) {
+        this.domain  = domain;
+        this.name = name;
+        this.type = type;
     }
 
 
@@ -25,10 +37,33 @@ public class Attribute {
         return name;
     }
 
+    void setDomain(HashSet<String> domain){
+        this.domain = domain;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+
     public HashSet<String> getDomain() {
         return domain;
     }
 
+    public HashSet<String> getSpittableDomain() {
+        if(getType() == Attribute.TYPE_NOMINAL) {
+            return domain;
+        }else if(getType() == Attribute.TYPE_NUMERICAL){
+            HashSet<String> splittingDomain = new HashSet<>();
+            splittingDomain.add(getValueToSplitOn());
+            return splittingDomain;
+        }
+        return new HashSet<>();
+    }
+
+    private String getValueToSplitOn() {
+        return valueToSplitOn;
+    }
 
 
     public String toArff() {
@@ -64,5 +99,9 @@ public class Attribute {
     @Override
     public int hashCode() {
         return getName().hashCode();
+    }
+
+    public void setValueToSplitOn(String v) {
+        this.valueToSplitOn = v;
     }
 }
