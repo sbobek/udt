@@ -1,6 +1,9 @@
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
 import java.util.*;
 
 /**
@@ -300,7 +303,8 @@ public class Tree {
 
                 }
             }
-            result += "].\n";
+            confidence = (int)(confidence * 10) /10.0;
+            result += "]. # "+confidence+"\n";
             i++;
         }
 
