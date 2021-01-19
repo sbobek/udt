@@ -128,21 +128,20 @@ public class UId3 {
 
     public static void main(String [] argv){
         try {
-           // if(argv.length < 3){
+            if(argv.length < 2){
                 System.err.println("At least one parameter with dataset path should be provided");
                 System.err.println("Basic usage `java -jar UID3.jar file.arff dot`");
-                //System.exit(1);
-            //}
+                System.exit(1);
+            }
 
-            Data data = Data.parseUArff("./resources/lux.numeric.arff");//argv[1]);
+            Data data = Data.parseUArff(argv[0]);
             Tree t = growTree(data, new UncertainEntropyEvaluator(),0);
-            System.out.println(t.toHMR());
 
-            if(argv[2].equals("dot")) {
+            if(argv[1].equals("dot")) {
                 System.out.println(t.toDot());
-            }else if(argv[2].equals("str")) {
+            }else if(argv[1].equals("str")) {
                 System.out.println(t.toString());
-            }else if(argv[2].equals("hmr")) {
+            }else if(argv[1].equals("hmr")) {
                 System.out.println(t.toHMR());
             }
 

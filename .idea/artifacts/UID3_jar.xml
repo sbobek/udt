@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="UID3:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/UID3</output-path>
+    <root id="archive" name="udt.jar">
+      <element id="module-output" name="udt" />
+    </root>
+  </artifact>
+</component>
