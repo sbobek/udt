@@ -26,6 +26,7 @@ public class UId3 {
             // create the only node and summary for it
             Attribute classAtt = data.getClassAttribute();
             TreeNode root = new TreeNode(classAtt.getName(),data.calculateStatistics(classAtt));
+            root.setType(classAtt.getType());
             Tree  result = new Tree(root);
             return result;
 
@@ -77,15 +78,16 @@ public class UId3 {
             // create the only node and summary for it
             Attribute classAtt = data.getClassAttribute();
             TreeNode root = new TreeNode(classAtt.getName(),data.calculateStatistics(classAtt));
+            root.setType(classAtt.getType());
             Tree  result = new Tree(root);
             return result;
 
         }
-        System.out.println("Global best "+bestSplit.getName());
         //Create root node, and recursively go deeper into the tree.
         Attribute classAtt = data.getClassAttribute();
         AttStats classStats = data.calculateStatistics(classAtt);
         TreeNode root = new TreeNode(bestSplit.getName(), classStats);
+        root.setType(classAtt.getType());
 
         //attach newly created trees
         for(String val : bestSplit.getSpittableDomain()){
@@ -101,6 +103,7 @@ public class UId3 {
                 Data newDataGreaterEqual = data.filterNumericAttributeValue(bestSplit, val, false);
                 Tree subtreeLessThan = UId3.growTree(newDataLessThen, entropyEvaluator, depth + 1);
                 Tree subtreeGreaterEqual = UId3.growTree(newDataGreaterEqual, entropyEvaluator, depth + 1);
+
                 AttStats bestSplitStats = data.calculateStatistics(bestSplit);
 
                 if (subtreeLessThan != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
@@ -110,27 +113,45 @@ public class UId3 {
                 if (subtreeGreaterEqual != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
                     root.addEdge(new TreeEdge(new Value(">="+val, bestSplitStats.getAvgConfidence()), subtreeGreaterEqual.getRoot()));
                 }
+                root.setType(Attribute.TYPE_NUMERICAL);
             }
+
 
         }
         if(root.getEdges().size() == 0){
             root.setAtt(data.getClassAttribute().getName());
+            root.setType(data.getClassAttribute().getType());
         }
 
         return new Tree(root);
     }
 
     public static void main(String [] argv){
-
         try {
-            Data data = Data.parseUArff("./resources/weather.numeric.arff");
+           // if(argv.length < 3){
+                System.err.println("At least one parameter with dataset path should be provided");
+                System.err.println("Basic usage `java -jar UID3.jar file.arff dot`");
+                //System.exit(1);
+            //}
+
+            Data data = Data.parseUArff("./resources/lux.numeric.arff");//argv[1]);
             Tree t = growTree(data, new UncertainEntropyEvaluator(),0);
-            System.out.println(t.toDot());
+            System.out.println(t.toHMR());
+
+            if(argv[2].equals("dot")) {
+                System.out.println(t.toDot());
+            }else if(argv[2].equals("str")) {
+                System.out.println(t.toString());
+            }else if(argv[2].equals("hmr")) {
+                System.out.println(t.toHMR());
+            }
 
         } catch (ParseException e) {
             e.printStackTrace();
         }
     }
+
+
 
     public static void growTreeUncertainNominal(String [] argv){
 

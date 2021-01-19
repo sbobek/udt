@@ -5,6 +5,7 @@ import java.util.LinkedList;
  */
 public class TreeNode {
     private String att;
+    private int type;
     private LinkedList<TreeEdge> edges;
     private AttStats stats;
 
@@ -12,6 +13,15 @@ public class TreeNode {
         att = attName;
         this.stats = stats;
         edges = new LinkedList<TreeEdge>();
+        type = Attribute.TYPE_NOMINAL;
+    }
+
+    public int getType() {
+        return type;
+    }
+
+    public void setType(int type) {
+        this.type = type;
     }
 
     public void addEdge(TreeEdge te){

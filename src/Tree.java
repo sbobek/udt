@@ -203,8 +203,112 @@ public class Tree {
     }
 
     public String toHMR(){
-        //TODO
-        return null;
+        String result = "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TYPES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%\n\n";
+
+
+        //types are defined by atts domains
+        HashSet<Attribute> atts = getAttributes();
+        for(Attribute att : atts){
+            result += "xtype [\n"+
+                    "name:"+(att.getName())+",\n";
+            if(att.getType() == Attribute.TYPE_NOMINAL) {
+                result+="base:symbolic,\n"+
+                        "domain : [";
+                String domainRes = "";
+                for (String v : att.getDomain()) {
+                    domainRes += v + ",";
+                }
+                result+=domainRes.trim().substring(0,domainRes.length()-1).replaceAll("[<>=]","");
+            }else if(att.getType() == Attribute.TYPE_NUMERICAL){
+                result+="base:numeric,\n"+
+                        "domain : [";
+                result+="-100000 to 100000";
+            }
+            result += "]].\n";
+
+        }
+
+
+        result += "\n%%%%%%%%%%%%%%%%%%%%%%%%% ATTRIBUTES DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%%%\n";
+        for(Attribute att : atts){
+            result += "xattr [ name: "+att.getName()+",\n" +
+                    "type:"+att.getName()+",\n " +
+                    "class:simple,\n comm:out ].\n";
+        }
+
+
+
+
+        //tables and rules
+        result +="\n%%%%%%%%%%%%%%%%%%%%%%%% TABLE SCHEMAS DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%%%\n";
+
+        result+= " xschm tree : [";
+        for(Attribute att : atts){
+            if(!att.equals(getClassAttribute())) result += att.getName()+",";
+        }
+        result = result.trim().substring(0,result.length()-1)+"]";
+        result += "==> [" +getClassAttribute().getName()+"].\n";
+
+        //rules
+
+        LinkedList<ArrayList<Condition>> rules = getRules();
+
+
+        String decisionAtt = getClassAttribute().getName();
+        Attribute decAtt = getClassAttribute();
+        Attribute [] condAtts = new Attribute[atts.size()];
+        List<Attribute> condAttsList = new LinkedList<Attribute>(Arrays.asList(atts.toArray(condAtts)));
+        condAttsList.remove(decAtt);
+
+        int i = 0;
+        for(ArrayList<Condition> rule : rules) {
+            result += "xrule tree/"+i+":\n"+
+                    "[";
+            //conditions
+            //for(Condition c : rule){
+            for(Attribute att : atts){
+                if(att.getName().equals(getClassAttribute().getName())){
+                    continue;
+                }
+                Value value = new Value("any",1.0);
+                //for (Attribute att : condAttsList) {
+                for(Condition c : rule){
+                    if(c.attName.equals(att.getName())){
+                        value = c.value;
+                    }
+                }
+
+                result +=  att.getName() + " " +
+                        value.getName().replace(">="," gte ").replace("<"," lt ")+",";
+
+
+            }
+
+            result = result.trim().substring(0,result.length()-1)+"] ==> [";
+            //decision
+
+
+            double confidence = 1;
+            for(Condition c : rule){
+                confidence *= c.value.getConfidence();
+            }
+
+
+            for(Condition c : rule){
+                if(c.attName.equals(decisionAtt)){
+                    result += decisionAtt+ " set " + c.value.getName().split("\\[")[0];
+
+                }
+            }
+            result += "].\n";
+            i++;
+        }
+
+       // result += "</table></xtt><callbacks/></hml>\n";
+
+
+
+        return result;
     }
 
     public void saveDot(String filename) throws FileNotFoundException, UnsupportedEncodingException {
@@ -280,7 +384,7 @@ public class Tree {
 
     private HashSet<Attribute> fillAttributes(HashSet<Attribute> result, TreeNode root){
         String attName = root.getAtt();
-        Attribute att = new Attribute(attName, new HashSet<String>());
+        Attribute att = new Attribute(attName, new HashSet<String>(),root.getType());
         if(result.contains(att)){
             for(Attribute tmp : result){
                 if(tmp.equals(att)){
