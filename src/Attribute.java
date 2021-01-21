@@ -15,6 +15,7 @@ public class Attribute {
     private HashSet<String> domain;
     private int type = TYPE_NOMINAL;
     private String valueToSplitOn;
+    private double infoGain;
 
     public Attribute(String name, HashSet<String> domain) {
         this.domain  = domain;
@@ -103,5 +104,13 @@ public class Attribute {
 
     public void setValueToSplitOn(String v) {
         this.valueToSplitOn = v;
+    }
+
+    public void setImportanceGain(double infoGain) {
+        this.infoGain = infoGain;
+    }
+
+    public double getImportanceGain() {
+        return infoGain;
     }
 }

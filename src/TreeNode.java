@@ -8,6 +8,7 @@ public class TreeNode {
     private int type;
     private LinkedList<TreeEdge> edges;
     private AttStats stats;
+    private double infogain;
 
     public TreeNode(String attName, AttStats stats){
         att = attName;
@@ -22,6 +23,14 @@ public class TreeNode {
 
     public void setType(int type) {
         this.type = type;
+    }
+
+    public double getInfogain() {
+        return infogain;
+    }
+
+    public void setInfogain(double infogain) {
+        this.infogain = infogain;
     }
 
     public void addEdge(TreeEdge te){

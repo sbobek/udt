@@ -200,6 +200,19 @@ public class Tree {
         return result;
     }
 
+    public String getImportances(){
+        HashSet<Attribute> atts = getAttributes();
+        String [] imps = new String[atts.size()-1];
+        for(int i=0; i < imps.length;i++){
+            Attribute a = ((Attribute)(atts.toArray()[i]));
+            if(a.getName().equals(getClassAttribute().getName())){
+                break;
+            }
+            imps[i] = Double.toString(a.getImportanceGain());
+        }
+        return String.join(",",imps);
+    }
+
     public void saveHMR(String filename){
         //TODO
         return;
@@ -389,6 +402,7 @@ public class Tree {
     private HashSet<Attribute> fillAttributes(HashSet<Attribute> result, TreeNode root){
         String attName = root.getAtt();
         Attribute att = new Attribute(attName, new HashSet<String>(),root.getType());
+        att.setImportanceGain(root.getInfogain());
         if(result.contains(att)){
             for(Attribute tmp : result){
                 if(tmp.equals(att)){

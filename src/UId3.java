@@ -69,6 +69,7 @@ public class UId3 {
             if(tempGain >= infoGain){
                 infoGain = tempGain;
                 bestSplit = a;
+                a.setImportanceGain(infoGain);
             }
 
         }
@@ -97,6 +98,7 @@ public class UId3 {
                 AttStats bestSplitStats = data.calculateStatistics(bestSplit);
                 if (subtree != null && bestSplitStats.getMostPorbable().getConfidence() > GROW_CONFIDENCE_THRESHOLD) {
                     root.addEdge(new TreeEdge(new Value(val, bestSplitStats.getAvgConfidence()), subtree.getRoot()));
+                    root.setInfogain(bestSplit.getImportanceGain());
                 }
             }else if(bestSplit.getType() == Attribute.TYPE_NUMERICAL) {
                 Data newDataLessThen = data.filterNumericAttributeValue(bestSplit, val, true);
@@ -114,6 +116,7 @@ public class UId3 {
                     root.addEdge(new TreeEdge(new Value(">="+val, bestSplitStats.getAvgConfidence()), subtreeGreaterEqual.getRoot()));
                 }
                 root.setType(Attribute.TYPE_NUMERICAL);
+                root.setInfogain(bestSplit.getImportanceGain());
             }
 
 
@@ -143,7 +146,11 @@ public class UId3 {
                 System.out.println(t.toString());
             }else if(argv[1].equals("hmr")) {
                 System.out.println(t.toHMR());
+            }else if(argv[1].equals("infogain")){
+                System.out.println(t.getImportances());
             }
+
+
 
         } catch (ParseException e) {
             e.printStackTrace();
